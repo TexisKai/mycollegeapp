@@ -1,4 +1,6 @@
 {
+  "/not-found": "app/not-found.js",
+  "/auth/page": "app/auth/page.js",
   "/onboarding/page": "app/onboarding/page.js",
-  "/api/upload/route": "app/api/upload/route.js"
+  "/dashboard/page": "app/dashboard/page.js"
 }

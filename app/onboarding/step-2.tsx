@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { uploadFile } from '@/lib/storage';
 
 interface StepProps {
   data: any;
@@ -10,44 +10,34 @@ interface StepProps {
 
 export default function Step2({ data, updateData }: StepProps) {
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const uploadFile = async (file: File) => {
-    setError(null);
-    const fd = new FormData();
-    fd.append('file', file);
+  const handleFile = async (file: File) => {
+    try {
+      setError(null);
+      setUploading(true);
 
-    const {
-      data: { session }
-    } = await supabase.auth.getSession();
-
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${session?.access_token}`,
-      },
-      body: fd,
-    });
-
-    const json = await res.json();
-    if (json.url) {
-      updateData({ du_id_url: json.url });
+      const url = await uploadFile(file); // NEW FIXED HELPER
       setFileName(file.name);
-    } else {
-      setError(json.error || 'Upload failed');
+      updateData({ du_id_url: url });
+    } catch (err: any) {
+      setError(err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
     }
   };
 
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) uploadFile(f);
+  const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const f = e.dataTransfer.files?.[0];
-    if (f) uploadFile(f);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
   };
 
   return (
@@ -56,26 +46,32 @@ export default function Step2({ data, updateData }: StepProps) {
 
       <div
         onClick={() => inputRef.current?.click()}
-        onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
+        onDrop={onDrop}
         className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-indigo-400 transition"
       >
-        <p className="text-sm text-gray-600 mb-2">Drag & drop your College ID here, or click to browse</p>
+        <p className="text-sm text-gray-600">
+          Drag & drop your College ID here, or click to browse
+        </p>
         <p className="text-xs text-gray-400">Accepted: JPG, PNG, PDF · Max: 10MB</p>
+
+        {uploading && (
+          <p className="text-indigo-600 mt-3 text-sm">Uploading...</p>
+        )}
       </div>
 
       <input
         ref={inputRef}
         type="file"
         accept="image/*,.pdf"
-        onChange={onFile}
+        onChange={onInputChange}
         className="hidden"
       />
 
       {fileName && (
-        <div className="mt-4 p-3 bg-green-50 rounded border border-green-200">
-          <p className="text-sm font-medium text-green-700">{fileName}</p>
-          <p className="text-xs text-gray-500">Uploaded</p>
+        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-green-700 text-sm font-medium">{fileName}</p>
+          <p className="text-gray-500 text-xs">Uploaded successfully</p>
         </div>
       )}
 
@@ -83,7 +79,9 @@ export default function Step2({ data, updateData }: StepProps) {
         <p className="text-red-600 text-sm mt-2">{error}</p>
       )}
 
-      <p className="mt-4 text-xs text-gray-500 text-center">We keep your ID private. Only visible to the verification team.</p>
+      <p className="text-xs text-gray-500 mt-4 text-center">
+        We keep your ID private. Visible only to the verification team.
+      </p>
     </div>
   );
 }

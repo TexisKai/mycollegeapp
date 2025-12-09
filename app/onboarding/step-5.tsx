@@ -1,6 +1,7 @@
 'use client';
+
 import React, { useRef, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { uploadFile } from '@/lib/storage';
 
 interface StepProps {
   data: any;
@@ -10,62 +11,60 @@ interface StepProps {
 export default function Step5({ data, updateData }: StepProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [preview, setPreview] = useState<string>(data.profile_picture_url || '');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const uploadPic = async (file: File) => {
-    const fd = new FormData();
-    fd.append('file', file);
+  const handleFile = async (file: File) => {
+    try {
+      setError(null);
+      setUploading(true);
 
-    const {
-      data: { session }
-    } = await supabase.auth.getSession();
-
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${session?.access_token}`,
-      },
-      body: fd,
-    });
-
-    const json = await res.json();
-    if (json.url) {
-      updateData({ profile_picture_url: json.url });
-      setPreview(json.url);
+      const url = await uploadFile(file); // NEW FIXED HELPER
+      updateData({ profile_picture_url: url });
+      setPreview(url);
+    } catch (err: any) {
+      setError(err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
     }
   };
 
   const onSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) uploadPic(f);
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
   };
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold mb-4">Upload Profile Picture 📸</h2>
+      <h2 className="text-2xl font-semibold mb-5">Upload Profile Picture 📸</h2>
 
       <div
         onClick={() => inputRef.current?.click()}
-        className="w-32 h-32 rounded-full bg-gray-200 mx-auto mb-4 overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-400 transition"
+        className="w-32 h-32 mx-auto rounded-full bg-gray-200 overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition flex items-center justify-center"
       >
         {preview ? (
-          <img src={preview} className="w-full h-full object-cover" />
+          <img src={preview} className="w-full h-full object-cover" alt="Profile Preview" />
         ) : (
-          <div className="flex items-center h-full justify-center text-gray-500 text-sm">
-            Tap to upload ✨
-          </div>
+          <span className="text-gray-600 text-sm">
+            {uploading ? 'Uploading...' : 'Tap to upload ✨'}
+          </span>
         )}
       </div>
 
       <input
-        ref={inputRef}
         type="file"
+        ref={inputRef}
         accept="image/*"
-        onChange={onSelect}
         className="hidden"
+        onChange={onSelect}
       />
 
-      <p className="text-center text-sm text-gray-600">
-        You can always change this later.
+      {error && (
+        <p className="text-red-600 text-sm text-center mt-3">{error}</p>
+      )}
+
+      <p className="text-xs text-gray-500 text-center mt-3">
+        You can change this anytime from your profile settings.
       </p>
     </div>
   );

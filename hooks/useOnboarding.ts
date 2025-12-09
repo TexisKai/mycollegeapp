@@ -1,42 +1,52 @@
-import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+"use client";
+
+import { supabase } from "@/lib/supabase";
+
+export type OnboardingData = {
+  college?: string;
+  course?: string;
+  year?: string | number;
+  du_id_url?: string;
+  bio?: string;
+  relationship_status?: string;
+  interests?: string[];
+  skills?: string[];
+  profile_picture_url?: string;
+};
 
 export function useOnboarding() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const completeOnboarding = async (userId: string, data: OnboardingData) => {
+    const payload: any = {
+      college: data.college ?? null,
+      course: data.course ?? null,
+      year: data.year ? Number(data.year) : null,
+      du_id_url: data.du_id_url ?? null,
+      bio: data.bio ?? null,
+      relationship_status: data.relationship_status ?? null,
+      interests: data.interests ?? null,
+      skills: data.skills ?? null,
+      profile_picture_url: data.profile_picture_url ?? null,
+      onboarding_completed: true,
+      profile_completed: true,
+      updated_at: new Date().toISOString(),
+    };
 
-  const completeOnboarding = async (userId: string, formData: any) => {
-    setLoading(true);
-    setError(null);
+    // CORRECT Supabase JS update pattern
+    const { data: updated, error } = await supabase
+      .from("users")
+      .update(payload)
+      .eq("id", userId)
+      .select("*")
+      .maybeSingle(); // prevents JSON coercion failures
 
-    try {
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({
-          college: formData.college || null,
-          course: formData.course || null,
-          year: formData.year || null,
-          interests: formData.interests || [],
-          skills: formData.skills || [],
-          bio: formData.bio || null,
-          relationship_status: formData.relationship_status || null,
-          du_id_url: formData.duIdUrl || null,
-          profile_picture_url: formData.profile_picture_url || null,
-          onboarding_complete: true,
-        })
-        .eq('id', userId);
+    if (error) throw error;
 
-      if (updateError) throw updateError;
-
-      return { success: true };
-    } catch (err: any) {
-      console.error('Onboarding error:', err);
-      setError(err.message || 'Failed to complete onboarding');
-      throw err;
-    } finally {
-      setLoading(false);
+    if (!updated) {
+      throw new Error("User row not found — onboarding could not complete.");
     }
+
+    return updated;
   };
 
-  return { completeOnboarding, loading, error };
+  return { completeOnboarding };
 }
