@@ -2,6 +2,9 @@
 
 import { Heart, MessageCircle } from "lucide-react";
 
+const avatarFor = (seed: string) =>
+  `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
+
 export default function PostCard({
   userName = "Anonymous Student",
   userAvatar = "/default-avatar.png",
@@ -21,7 +24,7 @@ export default function PostCard({
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
         <img
-          src={userAvatar}
+          src={avatarFor(userName)}
           className="w-10 h-10 rounded-full border object-cover"
         />
 

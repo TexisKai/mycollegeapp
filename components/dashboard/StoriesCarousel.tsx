@@ -3,13 +3,16 @@
 import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+const avatarFor = (seed: string) =>
+  `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
+
 const sampleStories = [
-  { name: "Enactus", img: "/default-avatar.png" },
-  { name: "Dramatics", img: "/default-avatar.png" },
-  { name: "NSS DU", img: "/default-avatar.png" },
-  { name: "Tech Club", img: "/default-avatar.png" },
-  { name: "Music Club", img: "/default-avatar.png" },
-  { name: "Fashion", img: "/default-avatar.png" },
+  { name: "Enactus" },
+  { name: "Dramatics" },
+  { name: "NSS DU" },
+  { name: "Tech Club" },
+  { name: "Music Club" },
+  { name: "Fashion" },
 ];
 
 export default function StoriesCarousel() {
@@ -57,7 +60,7 @@ export default function StoriesCarousel() {
               group-hover:scale-105 transition
             ">
               <img
-                src={story.img}
+                src={avatarFor(story.name)}
                 className="
                   w-full h-full object-cover rounded-full border-2 border-white
                 "

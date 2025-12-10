@@ -6,10 +6,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { useState, useEffect, useRef } from "react";
 
+const avatarFor = (seed: string) =>
+  `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
+
 export default function Header() {
   const { user } = useAuth();
   const router = useRouter();
-  const [profilePic, setProfilePic] = useState<string>("/default-avatar.png");
+  const [profilePic, setProfilePic] = useState<string>("");
   const [openMenu, setOpenMenu] = useState(false);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -97,7 +100,7 @@ export default function Header() {
             className="flex items-center gap-2"
           >
             <img
-              src={profilePic}
+              src={profilePic || avatarFor(user?.email || "user")}
               className="w-9 h-9 rounded-full object-cover border"
             />
             <ChevronDown size={18} className="text-gray-600" />

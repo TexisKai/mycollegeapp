@@ -2,6 +2,9 @@
 
 import { Calendar, Users, TrendingUp } from "lucide-react";
 
+const avatarFor = (seed: string) =>
+  `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
+
 export default function RightSidebar() {
   return (
     <aside 
@@ -64,7 +67,7 @@ export default function RightSidebar() {
 
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <img src="/default-avatar.png" className="w-10 h-10 rounded-full border" />
+            <img src={avatarFor("Aditi Sharma")} className="w-10 h-10 rounded-full border" />
             <div>
               <p className="font-semibold text-gray-800">Aditi Sharma</p>
               <p className="text-xs text-gray-500">B.Com • 2nd Year</p>
@@ -72,7 +75,7 @@ export default function RightSidebar() {
           </div>
 
           <div className="flex items-center gap-3">
-            <img src="/default-avatar.png" className="w-10 h-10 rounded-full border" />
+            <img src={avatarFor("Rohan Gupta")} className="w-10 h-10 rounded-full border" />
             <div>
               <p className="font-semibold text-gray-800">Rohan Gupta</p>
               <p className="text-xs text-gray-500">Eco • 3rd Year</p>

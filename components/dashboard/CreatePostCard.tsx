@@ -5,6 +5,9 @@ import { supabase } from "@/lib/supabase";
 import { Image, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
+const avatarFor = (seed: string) =>
+  `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
+
 export default function CreatePostCard() {
   const { user } = useAuth();
 
@@ -67,7 +70,7 @@ export default function CreatePostCard() {
       <div className="flex items-start gap-3">
         
         <img
-          src="/default-avatar.png"
+          src={avatarFor(user?.email || "user")}
           className="w-11 h-11 rounded-full object-cover border"
         />
 
