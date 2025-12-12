@@ -17,3 +17,49 @@ body {
 /* Small utility improvements */
 button:focus { outline: 2px solid rgba(99,102,241,0.25); outline-offset: 2px; }
 input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(99,102,241,0.06); }
+.like-burst {
+  animation: heart-burst 0.4s ease-out;
+}
+
+@keyframes heart-burst {
+  0% { transform: scale(0.5); opacity: 0.2; }
+  50% { transform: scale(1.4); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.like-burst {
+  animation: likeBurst 0.35s ease-out;
+}
+
+@keyframes likeBurst {
+  0% { transform: scale(0.3); opacity: 0.3; }
+  70% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-like-bounce {
+  animation: likeBounce 0.35s ease-out;
+}
+
+@keyframes likeBounce {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+.animate-ping-fast {
+  animation: pingFast 0.6s ease-out;
+}
+
+@keyframes pingFast {
+  0% { transform: scale(0.4); opacity: 0; }
+  50% { opacity: 0.9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -1,135 +1,167 @@
 'use client';
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { Image, X } from "lucide-react";
+import { supabase } from "@/lib/supabase-browser";
+import { Image, X, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const avatarFor = (seed: string) =>
   `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
 
-export default function CreatePostCard() {
+export default function CreatePostCard({ onPostCreated }: { onPostCreated?: () => void }) {
   const { user } = useAuth();
 
   const [content, setContent] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [posting, setPosting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleImageUpload = (e: any) => {
+  // -----------------------------
+  // Handle image selection
+  // -----------------------------
+  const handleImageSelect = (e: any) => {
     const f = e.target.files?.[0];
     if (!f) return;
+
     setFile(f);
 
+    // Preview
     const reader = new FileReader();
     reader.onload = () => setImagePreview(reader.result as string);
     reader.readAsDataURL(f);
   };
 
-  const handlePost = async () => {
-    if (!content && !file) return;
+  // -----------------------------
+  // Upload file to supabase bucket
+  // -----------------------------
+  async function uploadToBucket(file: File) {
+    const filePath = `posts/${user?.id}/${Date.now()}-${file.name}`;
 
-    setPosting(true);
+    const { error: uploadError } = await supabase.storage
+      .from("posts")
+      .upload(filePath, file, {
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Upload failed:", uploadError);
+      alert("Failed to upload image. Check storage policies.");
+      return null;
+    }
+
+    // Get public URL
+    const { data } = supabase.storage.from("posts").getPublicUrl(filePath);
+
+    return data.publicUrl;
+  }
+
+  // -----------------------------
+  // Handle Post Submission
+  // -----------------------------
+  const handlePost = async () => {
+    if (!content.trim() && !file) return;
+    if (!user) return alert("You must be logged in.");
+
+    setLoading(true);
 
     let imageUrl: string | null = null;
 
     if (file) {
-      const fileName = `${user?.id}-${Date.now()}.jpg`;
-
-      const { data, error } = await supabase.storage
-        .from("posts")
-        .upload(fileName, file);
-
-      if (!error) {
-        const publicUrl = supabase.storage.from("posts").getPublicUrl(fileName)
-          .data.publicUrl;
-
-        imageUrl = publicUrl;
+      imageUrl = await uploadToBucket(file);
+      if (!imageUrl) {
+        setLoading(false);
+        return;
       }
     }
 
     const { error } = await supabase.from("posts").insert({
-      user_id: user?.id,
-      content: content || null,
-      image_url: imageUrl,
+      user_id: user.id,
+      content: content.trim() || null,
+      media_urls: imageUrl ? [imageUrl] : null,
     });
 
-    if (!error) {
+    if (error) {
+      console.error("Post insert failed:", error);
+      alert("Post failed. Check console.");
+    } else {
+      // Reset UI
       setContent("");
       setImagePreview(null);
       setFile(null);
+
+      // Refresh feed without reload
+      onPostCreated?.();
     }
 
-    setPosting(false);
+    setLoading(false);
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border p-4 mb-6">
+    <div className="bg-white rounded-2xl shadow-md border p-5 mb-6 transition-all hover:shadow-lg">
 
-      {/* Top Row */}
-      <div className="flex items-start gap-3">
-        
+      {/* TOP SECTION */}
+      <div className="flex gap-3 items-start">
         <img
           src={avatarFor(user?.email || "user")}
-          className="w-11 h-11 rounded-full object-cover border"
+          className="w-11 h-11 rounded-full border object-cover"
         />
 
         <textarea
           placeholder="Share something with the campus..."
           value={content}
           onChange={(e) => setContent(e.target.value)}
+          rows={2}
           className="
-            w-full resize-none bg-gray-100 
-            rounded-xl p-3 outline-none text-sm
-            focus:bg-white focus:ring-2 ring-indigo-300
+            w-full bg-gray-100 rounded-xl p-3 text-sm resize-none
+            focus:ring-2 focus:ring-indigo-300 focus:bg-white outline-none
             transition
           "
-          rows={2}
-        ></textarea>
+        />
       </div>
 
-      {/* Image Preview */}
+      {/* IMAGE PREVIEW */}
       {imagePreview && (
         <div className="relative mt-3">
           <img
             src={imagePreview}
-            className="w-full rounded-xl border"
+            className="rounded-xl border w-full object-cover"
           />
+
+          {/* Close Button */}
           <button
-            className="absolute top-2 right-2 bg-white/80 p-1 rounded-full"
             onClick={() => {
               setImagePreview(null);
               setFile(null);
             }}
+            className="absolute top-2 right-2 bg-white/80 p-1 rounded-full shadow"
           >
             <X size={18} />
           </button>
         </div>
       )}
 
-      {/* Bottom Row */}
-      <div className="flex items-center justify-between mt-3">
+      {/* FOOTER ACTIONS */}
+      <div className="mt-4 flex justify-between items-center">
+
         <label
-          className="
-            flex items-center gap-2 text-indigo-600 
-            cursor-pointer hover:text-indigo-700 transition
-          "
+          className="flex items-center gap-2 cursor-pointer text-indigo-600 hover:text-indigo-700 transition"
         >
           <Image size={20} />
           <span className="text-sm font-medium">Add Photo</span>
-          <input type="file" className="hidden" onChange={handleImageUpload} />
+          <input type="file" className="hidden" onChange={handleImageSelect} />
         </label>
 
         <button
           onClick={handlePost}
-          disabled={posting || (!content && !file)}
+          disabled={loading || (!content.trim() && !file)}
           className="
-            bg-indigo-600 text-white px-4 py-2 rounded-xl 
-            disabled:opacity-50 disabled:cursor-not-allowed
-            hover:bg-indigo-700 transition text-sm font-medium
+            bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-medium
+            hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed
+            flex items-center gap-2 transition
           "
         >
-          {posting ? "Posting..." : "Post"}
+          {loading && <Loader2 size={18} className="animate-spin" />}
+          {loading ? "Posting..." : "Post"}
         </button>
       </div>
 

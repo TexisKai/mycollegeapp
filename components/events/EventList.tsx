@@ -2,43 +2,44 @@
 
 import EventCard from "./EventCard";
 
-export default function EventList() {
-  const sampleEvents = [
-    {
-      title: "DU Fest 2025",
-      description: "The biggest cultural fest across DU campuses!",
-      date: "Jan 14, 2025",
-      location: "North Campus Ground",
-      image: "/default-avatar.png",
-    },
-    {
-      title: "Tech Seminar",
-      description: "Latest trends in AI, ML, and cloud computing.",
-      date: "Jan 20, 2025",
-      location: "Convention Centre",
-    },
-    {
-      title: "Debate Championship",
-      description: "Inter-college debate competition across DU.",
-      date: "Jan 25, 2025",
-      location: "Arts Faculty",
-    },
-  ];
+type Event = {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  location: string;
+  society: string;
+  tags: string[];
+};
+
+interface EventListProps {
+  events: Event[];
+}
+
+export default function EventList({ events }: EventListProps) {
+  if (events.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-gray-500 text-lg mb-2">No events found</div>
+        <div className="text-gray-400 text-sm">Try adjusting your filters</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="mt-20 max-w-2xl mx-auto pb-20 px-4">
-      <h1 className="text-4xl font-bold text-gray-800 mb-8">
-        Upcoming Events 🎉
-      </h1>
-
-      {sampleEvents.map((event, i) => (
+    <div className="grid gap-6">
+      {events.map((event) => (
         <EventCard
-          key={i}
+          key={event.id}
+          id={event.id}
           title={event.title}
           description={event.description}
           date={event.date}
+          time={event.time}
           location={event.location}
-          image={event.image}
+          society={event.society}
+          tags={event.tags}
         />
       ))}
     </div>

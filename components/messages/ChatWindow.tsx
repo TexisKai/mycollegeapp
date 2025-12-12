@@ -1,48 +1,122 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import MessageBubble from "./MessageBubble";
 import MessageInput from "./MessageInput";
-import { avatarFor } from "@/lib/avatar";
 
-export default function ChatWindow({ user }: { user: any }) {
-  const [messages, setMessages] = useState([
-    { fromMe: false, text: "Hey there!" },
-    { fromMe: true, text: "Hello! How are you?" },
-  ]);
+interface Message {
+  id: string;
+  content: string;
+  sender_id: string;
+  created_at: string;
+  sender?: {
+    full_name: string;
+    profile_picture_url?: string;
+  };
+}
 
-  const sendMessage = (msg: string) => {
-    setMessages([...messages, { fromMe: true, text: msg }]);
+interface ChatWindowProps {
+  conversationId: string;
+  currentUserId: string;
+}
+
+export default function ChatWindow({ conversationId, currentUserId }: ChatWindowProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (conversationId) {
+      fetchMessages();
+    }
+  }, [conversationId]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const fetchMessages = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/messages/list?conversationId=${conversationId}`);
+      const data = await res.json();
+      setMessages(data.messages || []);
+    } catch (error) {
+      console.error('Failed to fetch messages:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (!user)
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const sendMessage = async (content: string) => {
+    if (!content.trim() || sending) return;
+
+    setSending(true);
+    try {
+      const res = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId, content }),
+      });
+
+      if (res.ok) {
+        fetchMessages(); // Refresh messages
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!conversationId) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-500">
-        Select a chat to start messaging.
+        <div className="text-center">
+          <div className="text-lg mb-2">Select a conversation</div>
+          <div className="text-sm">Choose a chat to start messaging</div>
+        </div>
       </div>
     );
+  }
 
   return (
     <div className="flex-1 flex flex-col">
-
-      {/* Header */}
-      <div className="border-b px-5 py-4 flex items-center gap-3 bg-white shadow-sm">
-        <img
-          src={avatarFor(user.name)}
-          className="w-10 h-10 rounded-full"
-        />
-        <p className="font-semibold text-gray-900">{user.name}</p>
-      </div>
-
       {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
-        {messages.map((m, i) => (
-          <MessageBubble key={i} message={m.text} isMine={m.fromMe} />
-        ))}
+        {loading ? (
+          <div className="flex justify-center items-center h-full">
+            <div className="text-gray-500">Loading messages...</div>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex justify-center items-center h-full">
+            <div className="text-gray-500 text-center">
+              <div className="text-lg mb-2">No messages yet</div>
+              <div className="text-sm">Start the conversation!</div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                message={message.content}
+                isMine={message.sender_id === currentUserId}
+                timestamp={message.created_at}
+              />
+            ))}
+            <div ref={messagesEndRef} />
+          </>
+        )}
       </div>
 
       {/* Input */}
-      <MessageInput onSend={sendMessage} />
+      <MessageInput onSend={sendMessage} disabled={sending} />
     </div>
   );
 }

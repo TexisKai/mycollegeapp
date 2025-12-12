@@ -1,11 +1,41 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
-export function middleware(req: NextRequest) {
-  // placeholder - in production, use supabase on server to check session
-  return NextResponse.next();
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next();
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => req.cookies.getAll(),
+        setAll: (cookies) => {
+          cookies.forEach((cookie) => {
+            res.cookies.set(cookie);
+          });
+        },
+      },
+    }
+  );
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const isAuthPage = req.nextUrl.pathname.startsWith("/auth");
+
+  if (!session && !isAuthPage) {
+    return NextResponse.redirect(new URL("/auth", req.url));
+  }
+
+  if (session && isAuthPage) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
+  return res;
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*','/onboarding/:path*'],
+  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/auth"],
 };

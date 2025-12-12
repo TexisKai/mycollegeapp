@@ -1,44 +1,31 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { User } from '@supabase/supabase-js';
-
-/**
- * FIXED & PRODUCTION SAFE useAuth Hook
- *
- * Improvements:
- * - user starts as `undefined` to distinguish "loading" vs "not logged in"
- * - prevents early redirects on onboarding page
- * - consistent session hydration across refreshes & signup
- * - stable unsubscribe cleanup
- */
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase-browser";
+import type { User } from "@supabase/supabase-js";
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [user, setUser] = useState<User | null>(null);   // FIXED
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
+    let ignore = false;
 
-    // Initial session fetch (can be delayed right after signUp)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Auth state listener — updates instantly on signIn/signUp/signOut
-    const { data: subscription } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!mounted) return;
+      if (!ignore) {
         setUser(session?.user ?? null);
         setLoading(false);
+      }
+    });
+
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
       }
     );
 
     return () => {
-      mounted = false;
+      ignore = true;
       subscription.subscription.unsubscribe();
     };
   }, []);

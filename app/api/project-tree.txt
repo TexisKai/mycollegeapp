@@ -1,0 +1,330 @@
+# MYCOLLEGE — Remaining Local Dev TODO
+_Status: App Router + Supabase + TypeScript_  
+_Scope: Only work inside Next.js codebase (no Supabase dashboard changes)._
+
+---
+
+## 1. Feed System (Posts)
+
+### 1.1 Comments Drawer
+
+- [ ] Wire `CommentsDrawer` into `PostCard`:
+  - [ ] Add a "Comment" button in `PostCard` that opens the drawer for a given `postId`.
+  - [ ] Pass `postId`, `author`, and current user metadata as props to `CommentsDrawer`.
+- [ ] Fetch comments:
+  - [ ] Implement `usePostComments(postId)` hook calling `GET /api/posts/comments/list?postId=<id>`.
+  - [ ] Expose `{ comments, isLoading, isError, refetch }` from the hook.
+  - [ ] In `CommentsDrawer`, show loading spinner, error state, and empty state.
+  - [ ] Render each comment with:
+    - [ ] Avatar (from user profile URL).
+    - [ ] Author name.
+    - [ ] Comment text.
+    - [ ] Relative timestamp (e.g. "5 min ago").
+- [ ] Create new comment:
+  - [ ] In drawer footer, build a controlled `<textarea>` for comment text.
+  - [ ] On submit, call `POST /api/posts/comments/create` via a `useCreateComment` hook.
+  - [ ] Disable submit while request is in-flight.
+  - [ ] Show inline validation errors and toast for server errors.
+- [ ] Live UI updates:
+  - [ ] Optimistically append new comment to list while request is pending.
+  - [ ] On success, revalidate comments via `refetch()` or SWR/React Query `invalidate`.
+  - [ ] Auto-scroll to bottom whenever a new comment is added.
+- [ ] UI polish:
+  - [ ] Bubble-style layout with max-width and word-wrapping for long text.
+  - [ ] Right-aligned bubble with accent color for current user; left-aligned neutral bubble for others.
+  - [ ] Ensure mobile-friendly padding and spacing.
+
+### 1.2 Saved Posts Page
+
+- [ ] Add `app/saved/page.tsx`:
+  - [ ] Server-side auth check; redirect to `/login` if not signed in.
+  - [ ] Fetch saved posts via `GET /api/posts/save/list`.
+  - [ ] Show skeletons while loading and "No saved posts yet" empty state.
+- [ ] Integrate `PostCard`:
+  - [ ] Reuse existing `PostCard` component for rendering.
+  - [ ] Ensure save/unsave action updates local list without extra full-page reload.
+  - [ ] If main feed uses pagination/infinite scroll, mirror the same approach here.
+
+---
+
+## 2. Stories System
+
+### 2.1 Story Upload UI
+
+- [ ] Create `components/dashboard/StoriesUploader.tsx`:
+  - [ ] Client component with `<input type="file" accept="image/*,video/*" />`.
+  - [ ] Validate mime type and max file size on the client.
+  - [ ] Show inline preview (image or muted video).
+  - [ ] Upload to `POST /api/stories/upload` using `FormData` and `fetch` with progress indicator.
+  - [ ] Disable input and button while upload is in progress.
+  - [ ] On success, clear state, show toast, and notify parent to refetch stories.
+  - [ ] On error, show toast and allow retry.
+
+### 2.2 Story Viewer UI
+
+- [ ] Create `components/dashboard/StoryViewer.tsx`:
+  - [ ] Accept props: `stories`, `initialIndex`, `onClose`.
+  - [ ] Display current media full-screen (object-fit: cover).
+  - [ ] Show user avatar, name, and relative timestamp in header.
+  - [ ] Implement auto-advance timer (e.g. 5 seconds per story) with pause on hover.
+  - [ ] Support:
+    - [ ] Left/right click zones to navigate previous/next.
+    - [ ] Keyboard arrows for desktop.
+    - [ ] Optional swipe gestures on mobile if a gesture library is available.
+  - [ ] Render progress bars for each story at top.
+  - [ ] Close viewer on overlay click or Escape key.
+
+### 2.3 Dashboard Integration
+
+- [ ] Enhance `components/dashboard/StoriesCarousel.tsx`:
+  - [ ] Fetch stories via `GET /api/stories/feed` on mount.
+  - [ ] Show circular avatars with story ring (unseen vs seen state if available).
+  - [ ] Display loading skeletons and friendly empty state.
+  - [ ] On avatar click, open `StoryViewer` with that user’s stories and index 0.
+  - [ ] If current user is in view, show "Add Story" entry point that opens `StoriesUploader`.
+
+---
+
+## 3. Messages (Chat System)
+
+### 3.1 Chat List
+
+- [ ] Implement `components/messages/ChatList.tsx`:
+  - [ ] Call `GET /api/messages/conversations` on mount.
+  - [ ] Show:
+    - [ ] Other participant avatar and name.
+    - [ ] Last message preview (truncate).
+    - [ ] Last updated relative timestamp.
+    - [ ] Unread badge when there are unread messages.
+  - [ ] Highlight the selected conversation with a distinct background.
+  - [ ] Accept `onSelectConversation(conversationId)` callback from parent.
+  - [ ] Show skeleton items for loading and proper empty state.
+
+### 3.2 Chat Window
+
+- [ ] Implement `components/messages/ChatWindow.tsx`:
+  - [ ] Props: `conversationId`, `currentUserId`.
+  - [ ] Fetch messages via `GET /api/messages/list?conversationId=<id>` on mount.
+  - [ ] Render messages:
+    - [ ] Messages from current user right-aligned with primary-colored bubble.
+    - [ ] Other messages left-aligned with neutral bubble.
+    - [ ] Show timestamps and optional date separators.
+  - [ ] Scroll behavior:
+    - [ ] Scroll to bottom on initial load.
+    - [ ] Scroll to bottom whenever a new message is sent/received.
+  - [ ] Message input:
+    - [ ] Multiline textarea with Enter-to-send and Shift+Enter for new line.
+    - [ ] On submit, call `POST /api/messages/send`.
+    - [ ] Disable send button while request is in-flight.
+    - [ ] Show error toast on failure and keep unsent text.
+
+### 3.3 Realtime Messaging (Optional but Recommended)
+
+- [ ] Integrate Supabase Realtime client-side for each open conversation.[web:105][web:108]
+  - [ ] Subscribe to `supabase.channel("conversation-<id>")` when a conversation is active.
+  - [ ] Listen for `postgres_changes` insert events on `messages` for that conversation.
+  - [ ] When a new message arrives:
+    - [ ] Append to message list if conversation is active and message not already present.
+    - [ ] Update Chat List last message preview and unread badge.
+  - [ ] Clean up subscription on unmount or when `conversationId` changes.
+  - [ ] Deduplicate messages by checking message `id` before adding.
+
+---
+
+## 4. Events System
+
+### 4.1 Events List Page
+
+- [ ] In `app/events/page.tsx`:
+  - [ ] Fetch events via `GET /api/events/list`.
+  - [ ] Render cards with:
+    - [ ] Title.
+    - [ ] Society/organizer.
+    - [ ] Human-readable date and time.
+    - [ ] Location.
+    - [ ] Tags (Technical, Cultural, etc.).
+  - [ ] Implement client-side filters:
+    - [ ] Quick filters: Today, This Week.
+    - [ ] Society filter via dropdown or pills.
+  - [ ] Maintain filter state in URL search params for shareability.
+  - [ ] Show skeletons while loading and empty state when no results.
+
+### 4.2 Event Details Page
+
+- [ ] Add `app/events/[id]/page.tsx`:
+  - [ ] Fetch data via `GET /api/events/[id]` (or equivalent).
+  - [ ] Render:
+    - [ ] Banner image or gradient fallback.
+    - [ ] Title and description.
+    - [ ] Date, time, and location.
+    - [ ] Organizer / society block.
+  - [ ] Registration UX:
+    - [ ] "Register" button calling `POST /api/events/register`.
+    - [ ] Disable button while submitting.
+    - [ ] After success, switch to "Registered" state and disable further clicks.
+  - [ ] Handle 404 / not-found and generic error states.
+
+---
+
+## 5. Societies
+
+### 5.1 Societies List Page
+
+- [ ] In societies list route:
+  - [ ] Fetch list via `GET /api/societies/list`.
+  - [ ] Show cards with:
+    - [ ] Logo/banner.
+    - [ ] Name.
+    - [ ] Short tagline.
+    - [ ] Category/type.
+  - [ ] Implement search by name and filter by category.
+  - [ ] Wrap each card with link to `/societies/[id]`.
+
+### 5.2 Society Profile Page
+
+- [ ] Add `app/societies/[id]/page.tsx`:
+  - [ ] Server-side fetch society profile + events.
+  - [ ] Layout:
+    - [ ] Banner and profile avatar.
+    - [ ] Name, handle, and category.
+    - [ ] About section with markdown-like styling.
+  - [ ] Events:
+    - [ ] Show upcoming events for this society.
+    - [ ] Link each event to `/events/[id]`.
+  - [ ] Join button:
+    - [ ] Local UI toggle for Joined / Requested / Not joined.
+    - [ ] Wire to backend route when API is available, but keep optimistic UI.
+
+---
+
+## 6. Profile Page Enhancements
+
+- [ ] Replace mock profile data:
+  - [ ] Fetch real profile via `GET /api/profile/me` in server component.
+  - [ ] Pass data to child client components via props.
+- [ ] Edit profile modal:
+  - [ ] Build `EditProfileModal` with form fields: name, bio, avatar URL/upload, skills (chips), social links, etc.
+  - [ ] Submit to `POST /api/profile/update` using a client hook.
+  - [ ] Show inline validation errors and success/toast message.
+- [ ] Tabs:
+  - [ ] Posts tab:
+    - [ ] Fetch and render user posts reusing feed components.
+  - [ ] Saved tab:
+    - [ ] Fetch saved posts reusing Saved Posts logic.
+  - [ ] Skills tab:
+    - [ ] Render structured skills as tags/chips; optionally editable via modal.
+  - [ ] About tab:
+    - [ ] Show detailed profile info (year, course, interests, socials).
+
+---
+
+## 7. Search / Explore Page
+
+- [ ] Search bar:
+  - [ ] Implement debounced input (300–500 ms).
+  - [ ] After debounce, call `GET /api/search?q=<term>`.
+  - [ ] Cancel in-flight request when term changes.
+- [ ] Render grouped results:
+  - [ ] Users: avatar, name, handle, year/course.
+  - [ ] Societies: logo, name, category.
+  - [ ] Events: title, society, date.
+  - [ ] Posts: snippet + link to full post.
+- [ ] States:
+  - [ ] Show loading indicator while searching.
+  - [ ] Show "No results" for empty result sets.
+  - [ ] For empty query, show default Explore content (e.g. popular users, events, posts).
+
+---
+
+## 8. Notifications Page
+
+### 8.1 API Route
+
+- [ ] Implement `app/api/notifications/list/route.ts`:
+  - [ ] Authenticate current user.
+  - [ ] Query notifications table for that user.
+  - [ ] Optional filter: unread-only via query param.
+  - [ ] Return normalized JSON shape for the frontend.
+
+### 8.2 Notifications UI
+
+- [ ] Build `components/notifications/NotificationList.tsx`:
+  - [ ] Fetch `/api/notifications/list` on mount (or using SWR/React Query).
+  - [ ] Render each notification with:
+    - [ ] Icon by type (like, comment, event, system, etc.).
+    - [ ] Title and description.
+    - [ ] Relative timestamp.
+    - [ ] Different styling for unread vs read.
+  - [ ] Mark-as-read:
+    - [ ] On click or via action button, call `POST /api/notifications/mark-read`.
+    - [ ] Update local state to mark notification as read.
+  - [ ] Header badge:
+    - [ ] Show unread count badge in header/nav.
+    - [ ] Recalculate when notifications are marked as read.
+
+---
+
+## 9. Settings Page
+
+### 9.1 Account
+
+- [ ] Change password section:
+  - [ ] Integrate with Supabase auth password update.
+  - [ ] Form fields: current password, new password, confirm new password.
+  - [ ] Show success and error feedback.
+
+### 9.2 Privacy
+
+- [ ] Privacy toggles (front-end only for now):
+  - [ ] Profile visibility (Public / College only / Private).
+  - [ ] Activity status toggle.
+  - [ ] Online status toggle.
+  - [ ] Store in local state or call future API when available.
+
+### 9.3 Notifications
+
+- [ ] Notification preferences:
+  - [ ] Toggles for:
+    - [ ] Post interactions.
+    - [ ] Messages.
+    - [ ] Events.
+    - [ ] System/announcements.
+  - [ ] Optional: per-channel (email, in-app, push) configuration.
+
+### 9.4 Danger Zone
+
+- [ ] Delete account:
+  - [ ] Confirmation dialog with explicit irreversible warning.
+  - [ ] Call Supabase delete API or backend route.
+  - [ ] On success, sign out and redirect to landing page.
+
+---
+
+## 10. Timetable Page
+
+- [ ] Local JSON data:
+  - [ ] Seed JSON file(s) with timetable per course and year.
+  - [ ] Provide mapping structure like `{ course, year, timetable }`.
+- [ ] UI:
+  - [ ] Weekly grid view (Mon–Sun vs time slots).
+  - [ ] Controls for selecting course and year/semester.
+  - [ ] Search by subject name or code.
+- [ ] Download PDF (optional):
+  - [ ] Implement printable layout.
+  - [ ] Use browser print-to-PDF flow or lightweight client library.
+
+---
+
+## 11. Bonus Improvements (Optional)
+
+- [ ] Dark mode:
+  - [ ] Theme toggle in header or settings.
+  - [ ] Use CSS variables or Tailwind `dark` mode.
+  - [ ] Persist preference via localStorage or user profile.
+- [ ] Offline caching:
+  - [ ] Add basic service worker for offline support.
+  - [ ] Cache static assets and key pages.
+- [ ] Global loading UX:
+  - [ ] Add `loading.tsx` for main routes.
+  - [ ] Implement skeleton components for feed, stories, messages, and profile.
+

@@ -1,89 +1,109 @@
 'use client';
 
-import { useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus } from "lucide-react";
+import StoryViewer from "./StoryViewer";
+import StoriesUploader from "./StoriesUploader";
 
-const avatarFor = (seed: string) =>
-  `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
+interface StoryUser {
+  id: string;
+  full_name: string | null;
+  profile_picture_url: string | null;
+}
 
-const sampleStories = [
-  { name: "Enactus" },
-  { name: "Dramatics" },
-  { name: "NSS DU" },
-  { name: "Tech Club" },
-  { name: "Music Club" },
-  { name: "Fashion" },
-];
+interface Story {
+  id: string;
+  media_url: string;
+  user: StoryUser;
+}
 
 export default function StoriesCarousel() {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
+  const [showUploader, setShowUploader] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const scrollLeft = () => {
-    scrollRef.current?.scrollBy({ left: -200, behavior: "smooth" });
+  useEffect(() => {
+    fetchStories();
+  }, []);
+
+  const fetchStories = async () => {
+    try {
+      const res = await fetch('/api/stories/feed');
+      const data = await res.json();
+      setStories(data.stories || []);
+    } catch (error) {
+      console.error('Failed to fetch stories:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const scrollRight = () => {
-    scrollRef.current?.scrollBy({ left: 200, behavior: "smooth" });
+  const handleUploadSuccess = () => {
+    fetchStories();
   };
 
   return (
-    <div className="relative w-full mb-6">
+    <>
+      {/* STORY VIEWER MODAL */}
+      {selectedStory && (
+        <StoryViewer story={selectedStory} onClose={() => setSelectedStory(null)} />
+      )}
 
-      {/* Left scroll button */}
-      <button
-        onClick={scrollLeft}
-        className="
-          absolute left-0 top-1/2 -translate-y-1/2 
-          bg-white shadow-lg 
-          p-2 rounded-full z-10
-          hidden md:flex
-        "
-      >
-        <ChevronLeft size={20} />
-      </button>
+      {/* STORIES UPLOADER */}
+      {showUploader && (
+        <StoriesUploader 
+          onUploadSuccess={handleUploadSuccess}
+          onClose={() => setShowUploader(false)}
+        />
+      )}
 
-      {/* Stories List */}
-      <div
-        ref={scrollRef}
-        className="
-          flex gap-4 overflow-x-auto px-2 py-3 scrollbar-hide
-        "
-      >
-        {sampleStories.map((story, i) => (
-          <div 
-            key={i} 
-            className="flex flex-col items-center gap-2 cursor-pointer group"
-          >
-            <div className="
-              w-16 h-16 rounded-full p-1
-              bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500
-              group-hover:scale-105 transition
-            ">
-              <img
-                src={avatarFor(story.name)}
-                className="
-                  w-full h-full object-cover rounded-full border-2 border-white
-                "
-              />
-            </div>
+      {/* STORIES LIST */}
+      <div className="flex items-center gap-4 overflow-x-auto pb-3 mb-4 no-scrollbar">
 
-            <p className="text-xs text-gray-600">{story.name}</p>
+        {/* ADD STORY BUTTON */}
+        <div
+          className="flex flex-col items-center cursor-pointer"
+          onClick={() => setShowUploader(true)}
+        >
+          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center border shadow-sm hover:bg-gray-300 transition">
+            <Plus size={28} className="text-gray-600" />
           </div>
-        ))}
-      </div>
+          <p className="text-xs mt-1 text-gray-700">Your Story</p>
+        </div>
 
-      {/* Right scroll button */}
-      <button
-        onClick={scrollRight}
-        className="
-          absolute right-0 top-1/2 -translate-y-1/2 
-          bg-white shadow-lg 
-          p-2 rounded-full z-10
-          hidden md:flex
-        "
-      >
-        <ChevronRight size={20} />
-      </button>
-    </div>
+        {/* USER STORIES */}
+        {loading ? (
+          [...Array(3)].map((_, i) => (
+            <div key={i} className="flex flex-col items-center">
+              <div className="w-16 h-16 rounded-full bg-gray-200 animate-pulse" />
+              <div className="w-12 h-2 bg-gray-200 rounded mt-1 animate-pulse" />
+            </div>
+          ))
+        ) : (
+          stories.map((story) => (
+            <div
+              key={story.id}
+              className="flex flex-col items-center cursor-pointer"
+              onClick={() => setSelectedStory(story)}
+            >
+              <div className="w-16 h-16 rounded-full p-1 bg-gradient-to-tr from-pink-500 to-yellow-500">
+                <img
+                  src={story.user.profile_picture_url || `https://api.dicebear.com/7.x/thumbs/svg?seed=${story.user.full_name}`}
+                  className="w-full h-full rounded-full object-cover border-2 border-white"
+                  alt={story.user.full_name || 'User'}
+                />
+              </div>
+              <p className="text-xs mt-1 truncate max-w-[70px]">{story.user.full_name}</p>
+            </div>
+          ))
+        )}
+
+        {!loading && stories.length === 0 && (
+          <div className="text-gray-500 text-sm ml-4">No stories yet</div>
+        )}
+
+      </div>
+    </>
   );
 }

@@ -3,7 +3,7 @@
 import { Bell, MessageCircle, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase-browser";
 import { useState, useEffect, useRef } from "react";
 
 const avatarFor = (seed: string) =>
